@@ -54,7 +54,17 @@ def get_chat_respond(message, image_base64, chat_history=""):
                 {
                     "role": "user",
                     "content": [
-                        {"text": user_prompt}
+                        {
+                            "text": user_prompt
+                        },
+                        {
+                            "image": {
+                                "format": "jpeg",
+                                "source": {
+                                "bytes": image_base64
+                                }
+                            }
+                        },
                     ]
                 }
             ],
