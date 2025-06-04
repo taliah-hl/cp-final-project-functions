@@ -29,31 +29,25 @@ class BluetoothApp(App):
         return layout
     
 
-    def update_shadow_state(self, state_name, value):
-        shadow_client = AWSIoTMQTTShadowClient("mobile-controller")
-        shadow_client.configureEndpoint("your-iot-endpoint.amazonaws.com", 8883)
-        shadow_client.configureCredentials("root-ca.pem", "private.key", "certificate.pem.crt")
-        shadow_client.connect()
+    def __send_to_lambda__(self, command, state):
+        url = "https://your-api-id.execute-api.ap-northeast-1.amazonaws.com/prod/command"
+        headers = {"Content-Type": "application/json"}
+        payload = {"command": command, "state": state}
         
-        device_shadow = shadow_client.createShadowHandlerWithName("your-thing-name", True)
-        
-        payload = {
-            "state": {
-                "desired": {
-                    state_name: value
-                }
-            }
-        }
-        device_shadow.shadowUpdate(json.dumps(payload), None, 5)
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            print("Response from Lambda:", response.text)
+        except Exception as e:
+            print(f"Error calling Lambda: {e}")
 
             
     def send_cue_me(self, instance):
         if not self.recording:
-            self.update_shadow_state("cue", "Cue me")
+            self.__send_to_lambda__("cue", "Cue me")
             self.cue_me_btn.text = "Cue ok."
             self.recording = True
         else:
-            self.update_shadow_state("cue", "Cue ok")
+            self.__send_to_lambda__("cue", "Cue ok")
             self.cue_me_btn.text = "Cue me."
             self.recording = False
 
@@ -70,7 +64,7 @@ class BluetoothApp(App):
         else :
             self.notification_state = True
             
-        self.update_shadow_state("notification", str(self.notification_state))
+        self.__send_to_lambda__("notification", str(self.notification_state))
         
     def take_a_picture(self, instance):
         self._take_a_picture()
