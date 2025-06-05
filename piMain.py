@@ -2,6 +2,8 @@ from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTShadowClient
 import os
 import time
 import json
+import requests
+import base64
 """
 import pygame
 from piModules.Recorder import Recorder
@@ -60,6 +62,43 @@ def handle_delta_callback(payload, response_status, token):
                 report_state("cue", cue_state)
             except:
                 pass
+
+            # === 檔案路徑（請換成你的音訊與圖片實際路徑） ===
+            audio_path = "user_prompt1_how_are_you.wav"
+            image_path = "test_image.jpg"
+
+            # === 將檔案轉為 base64 ===
+            with open(audio_path, "rb") as audio_file:
+                audio_b64 = base64.b64encode(audio_file.read()).decode("utf-8")
+
+            with open(image_path, "rb") as image_file:
+                image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
+
+            # === API URL ===
+            url = "https://cagrxdp7g5.execute-api.ap-southeast-2.amazonaws.com/get-chat-respond"
+
+            # === Payload ===
+            payload = {
+                "audio": audio_b64,
+                "image_base64": image_b64,
+                "chat_history": "Hi, this is my previous message."
+            }
+
+            # === 發送 POST 請求 ===
+            headers = {
+                "Content-Type": "application/json"
+            }
+
+            response = requests.post(url, json=payload, headers=headers)
+
+            # === 檢查回應 ===
+            if response.status_code == 200:
+                print("Success! Response:")
+                print(response.json())
+            else:
+                print(f"Request failed: {response.status_code}")
+                print(response.text)
+
             """
             interlude = pygame.mixer.Sound(str(can_dir / 'Interlude.mp3'))
             # pygame.mixer.music.load(str(can_dir / 'Interlude.mp3'))
@@ -95,9 +134,9 @@ if __name__ == "__main__":
     pygame.mixer.init()
     """
     cert_files = {
-        "root_ca": os.path.join(base_dir, "connect_device_package/root-CA.crt"),
-        "private_key": os.path.join(base_dir, "connect_device_package/Final_pi_test.private.key"),
-        "cert": os.path.join(base_dir, "connect_device_package/Final_pi_test.cert.pem")
+        "root_ca": os.path.join(base_dir, "root-CA.crt"),
+        "private_key": os.path.join(base_dir, "Final_pi_test.private.key"),
+        "cert": os.path.join(base_dir, "Final_pi_test.cert.pem")
     }
     # 建立 Device Shadow 連線
     shadow_client = AWSIoTMQTTShadowClient("DeviceController")
