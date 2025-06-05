@@ -3,6 +3,9 @@ import os
 import time
 from audioTranscriber import AudioTranscriber
 from chatBot import *
+import boto3
+
+
 
 def lambda_handler(event, context):
     """
@@ -15,7 +18,10 @@ def lambda_handler(event, context):
         "chat_history": "Optional chat history"
     }
     """
+    
+
     try:
+        lambda_client = boto3.client('lambda')
         # If event comes from API Gateway, extract and parse the body
         if "body" in event:
             # If body is already a dict, use it; otherwise, parse JSON string
@@ -30,8 +36,6 @@ def lambda_handler(event, context):
         audio_base64 = body.get('audio', '')
         image_base64 = body.get('image_base64', '')
         chat_history = body.get('chat_history', '')
-
-        
 
         # if audio_base64 is not str or image_base64 is not str:
         if not isinstance(audio_base64, str) or not isinstance(image_base64, str) or not audio_base64 or not image_base64:
@@ -89,26 +93,39 @@ def lambda_handler(event, context):
                 })
             }
         
-        # to do: call speech to text lamdba
-        # try:
-        #     pass
-        # except Exception as e:
-        #     return {
-        #         'statusCode': 400,
-        #         'body': json.dumps({
-        #             'success': False,
-        #             'message': 'Speech to text failed',
-        #             'error': str(e)
-        #         })
-        #     }
-        respond_audio = "dummy audio"   # simulate dummy audio
+        # call TTS lamdba
+        try:
+            tts_response = lambda_client.invoke(
+                FunctionName='Team12-TextToSpeech',  # 替換成你的 TTS Lambda 名稱
+                InvocationType='RequestResponse',
+                Payload=json.dumps({
+                    "text": respond_message,
+                    "voice": "Zhiyu"  # 可選擇其他 Polly 支援的 VoiceId
+                }).encode("utf-8")
+            )
+
+            tts_payload = json.loads(tts_response["Payload"].read())
+            audio_url = json.loads(tts_payload["body"]).get("audio_url", "error")
+
+            if audio_url == "error":
+                raise Exception("TTS lambda failed to return audio_url")
+
+        except Exception as e:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({
+                    "success": False,
+                    "message": "TTS Lambda 呼叫失敗",
+                    "error": str(e)
+                })
+            }
 
         return {
-            'statusCode': 200,
-            'body': json.dumps({
-                'success': True,
-                'message': respond_message,
-                'audio': respond_audio
+            "statusCode": 200,
+            "body": json.dumps({
+                "success": True,
+                "message": respond_message,
+                "audio_url": audio_url
             })
         }
 
