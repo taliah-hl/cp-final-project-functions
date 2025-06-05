@@ -16,10 +16,33 @@ def lambda_handler(event, context):
     }
     """
     try:
+        # If event comes from API Gateway, extract and parse the body
+        if "body" in event:
+            # If body is already a dict, use it; otherwise, parse JSON string
+            if isinstance(event["body"], dict):
+                body = event["body"]
+            else:
+                body = json.loads(event["body"])
+        else:
+            body = event
+
         # Extract data from event
-        audio_base64 = event.get('audio', '')
-        image_base64 = event.get('image_base64', '')
-        chat_history = event.get('chat_history', '')
+        audio_base64 = body.get('audio', '')
+        image_base64 = body.get('image_base64', '')
+        chat_history = body.get('chat_history', '')
+
+        
+
+        # if audio_base64 is not str or image_base64 is not str:
+        if not isinstance(audio_base64, str) or not isinstance(image_base64, str) or not audio_base64 or not image_base64:
+            return {
+                'statusCode': 400,
+                'body': json.dumps({
+                    'success': False,
+                    'message': f'Invalid input data format, image_base64: {image_base64}, audio_base64: {audio_base64}',
+                    'error': 'audio_base64 and image_base64 must be strings'
+                })
+            }
         try:
             user_message = speech_to_text(audio_base64)
             print(f"user message: {user_message}")

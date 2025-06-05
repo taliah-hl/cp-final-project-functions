@@ -18,14 +18,32 @@ class AudioTranscriber:
         Upload audio data to S3
         
         Parameters:
-        - audio_data: Binary audio data or local file path
+        - audio_base64: Base64 encoded audio data
         - s3_key: S3 object key where the audio will be stored
         """
         self.s3_key = s3_key
-        audio_data = base64.b64decode(audio_base64)
-        audio_stream = io.BytesIO(audio_data)
-        self.s3.upload_fileobj(audio_stream, self.bucket_name, s3_key)
-        print(f"Uploaded binary audio data to s3://{self.bucket_name}/{s3_key}")
+        
+        # Debug info
+        print(f"Audio base64 string length: {len(audio_base64)}")
+        
+        # Check if the string is empty or too short
+        if not audio_base64 or len(audio_base64) < 10:
+            raise ValueError("Audio base64 string is empty or too short")
+        
+        try:
+            audio_data = base64.b64decode(audio_base64)
+            # Check if decoded data is empty
+            if len(audio_data) == 0:
+                raise ValueError("Decoded audio data is empty")
+                
+            print(f"Decoded audio data size: {len(audio_data)} bytes")
+            
+            audio_stream = io.BytesIO(audio_data)
+            self.s3.upload_fileobj(audio_stream, self.bucket_name, s3_key)
+            print(f"Uploaded binary audio data to s3://{self.bucket_name}/{s3_key}")
+        except base64.binascii.Error:
+            raise ValueError("Invalid base64 encoding in audio data")
+
 
     def start_transcription(self, job_name, media_format='m4a', language_code='zh-TW'):
         self.job_name = job_name
