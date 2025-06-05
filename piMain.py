@@ -4,6 +4,8 @@ import time
 import json
 import requests
 import base64
+import pygame
+import io
 """
 import pygame
 from piModules.Recorder import Recorder
@@ -63,41 +65,63 @@ def handle_delta_callback(payload, response_status, token):
             except:
                 pass
 
-            # === 檔案路徑（請換成你的音訊與圖片實際路徑） ===
+
+            # 初始化音訊系統（請在主程式初始化時執行一次）
+            pygame.mixer.init()
+
+            # === 音訊與圖片檔案 ===
             audio_path = "user_prompt1_how_are_you.wav"
             image_path = "test_image.jpg"
 
-            # === 將檔案轉為 base64 ===
+            # === 編碼成 base64 ===
             with open(audio_path, "rb") as audio_file:
                 audio_b64 = base64.b64encode(audio_file.read()).decode("utf-8")
 
             with open(image_path, "rb") as image_file:
                 image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
 
-            # === API URL ===
+            # === API 網址與 payload ===
             url = "https://cagrxdp7g5.execute-api.ap-southeast-2.amazonaws.com/get-chat-respond"
-
-            # === Payload ===
             payload = {
                 "audio": audio_b64,
                 "image_base64": image_b64,
                 "chat_history": "Hi, this is my previous message."
             }
-
-            # === 發送 POST 請求 ===
             headers = {
                 "Content-Type": "application/json"
             }
 
+            # === 發送請求 ===
             response = requests.post(url, json=payload, headers=headers)
 
-            # === 檢查回應 ===
             if response.status_code == 200:
-                print("Success! Response:")
-                print(response.json())
+                try:
+                    result = response.json()
+                    print("API 回應成功:", result)
+
+                    if result.get("success"):
+                        # TTS 音檔已生成完成，從指定 URL 播放
+                        tts_url = "https://team12-aidol-tts-output.s3-ap-southeast-2.amazonaws.com/tts_output.mp3"
+                        tts_response = requests.get(tts_url)
+
+                        if tts_response.status_code == 200:
+                            print("成功取得 TTS 音檔，開始播放...")
+                            sound = pygame.mixer.Sound(io.BytesIO(tts_response.content))
+                            sound.play()
+
+                            # 等待音訊播放完畢（選用）
+                            while pygame.mixer.get_busy():
+                                pygame.time.wait(100)
+                        else:
+                            print("無法下載音檔:", tts_response.status_code)
+                    else:
+                        print("API 回應失敗:", result.get("message"))
+                except Exception as e:
+                    print("解析或播放時出錯:", e)
             else:
-                print(f"Request failed: {response.status_code}")
+                print(f"POST 請求失敗: {response.status_code}")
                 print(response.text)
+
 
             """
             interlude = pygame.mixer.Sound(str(can_dir / 'Interlude.mp3'))
